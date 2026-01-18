@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Image Workbench</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .drop-zone { border: 2px dashed #4b5563; transition: all 0.3s; }
+        .drop-zone:hover { border-color: #3b82f6; background: #1f2937; }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen p-4 md:p-8">
+
+    <div class="max-w-5xl mx-auto">
+        <header class="mb-8 flex flex-col md:flex-row justify-between items-center gap-4">
+            <h1 class="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
+                AI Image Workbench
+            </h1>
+            <div class="flex items-center gap-2">
+                <input type="password" id="apiKey" placeholder="Enter API Key" 
+                       class="bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <button onclick="saveKey()" class="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded text-sm font-medium transition">Save Key</button>
+            </div>
+        </header>
+
+        <div class="flex gap-4 mb-8 justify-center">
+            <button onclick="setMode('swap')" id="btnSwap" class="px-6 py-2 rounded-full bg-blue-600 font-bold">Face Swap</button>
+            <button onclick="setMode('prompt')" id="btnPrompt" class="px-6 py-2 rounded-full bg-gray-700 font-bold">Face + Prompt</button>
+        </div>
+
+        <main class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div class="space-y-4">
+                <h2 id="leftLabel" class="text-xl font-semibold">Original Image</h2>
+                <div class="drop-zone rounded-xl p-4 h-64 flex flex-col items-center justify-center relative overflow-hidden">
+                    <input type="file" id="sourceInput" class="absolute inset-0 opacity-0 cursor-pointer" onchange="preview(this, 'sourcePreview')">
+                    <img id="sourcePreview" class="hidden absolute inset-0 w-full h-full object-contain pointer-events-none">
+                    <p class="text-gray-400">Click or Drag Base Image</p>
+                </div>
+            </div>
+
+            <div class="space-y-4">
+                <h2 class="text-xl font-semibold text-purple-400">Target Face</h2>
+                <div class="drop-zone rounded-xl p-4 h-64 flex flex-col items-center justify-center relative overflow-hidden">
+                    <input type="file" id="faceInput" class="absolute inset-0 opacity-0 cursor-pointer" onchange="preview(this, 'facePreview')">
+                    <img id="facePreview" class="hidden absolute inset-0 w-full h-full object-contain pointer-events-none">
+                    <p class="text-gray-400">Click or Drag Face Image</p>
+                </div>
+            </div>
+        </main>
+
+        <div id="promptContainer" class="mt-8 hidden">
+            <label class="block mb-2 font-semibold">Image Description (Prompt)</label>
+            <textarea id="promptInput" rows="3" placeholder="Describe the scene, outfit, and style..." 
+                      class="w-full bg-gray-800 border border-gray-700 rounded-xl p-4 focus:outline-none focus:ring-2 focus:ring-purple-500 text-white"></textarea>
+        </div>
+
+        <div class="mt-12 text-center">
+            <button id="generateBtn" onclick="handleGenerate()" 
+                    class="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 px-12 py-4 rounded-xl text-xl font-black uppercase tracking-widest shadow-lg transform hover:scale-105 transition">
+                Generate Result
+            </button>
+        </div>
+
+        <div id="resultArea" class="mt-12 hidden">
+            <h2 class="text-2xl font-bold mb-4 text-center">Output</h2>
+            <div class="bg-gray-800 rounded-2xl p-4 flex justify-center border border-gray-700">
+                <div id="loading" class="hidden p-10">Processing AI magic...</div>
+                <img id="outputImage" class="max-w-full rounded-lg shadow-2xl" src="" alt="Result">
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Key Management
+        document.getElementById('apiKey').value = localStorage.getItem('ai_api_key') || '';
+        
+        function saveKey() {
+            const key = document.getElementById('apiKey').value;
+            localStorage.setItem('ai_api_key', key);
+            alert('Key saved locally!');
+        }
+
+        // Preview Logic
+        function preview(input, imgId) {
+            const file = input.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const img = document.getElementById(imgId);
+                    img.src = e.target.result;
+                    img.classList.remove('hidden');
+                }
+                reader.readAsDataURL(file);
+            }
+        }
+
+        // Mode Switching
+        function setMode(mode) {
+            const promptCont = document.getElementById('promptContainer');
+            const leftLabel = document.getElementById('leftLabel');
+            const btnSwap = document.getElementById('btnSwap');
+            const btnPrompt = document.getElementById('btnPrompt');
+
+            if (mode === 'swap') {
+                promptCont.classList.add('hidden');
+                leftLabel.innerText = "Original Image";
+                btnSwap.classList.replace('bg-gray-700', 'bg-blue-600');
+                btnPrompt.classList.replace('bg-blue-600', 'bg-gray-700');
+            } else {
+                promptCont.classList.remove('hidden');
+                leftLabel.innerText = "Reference Pose (Optional)";
+                btnPrompt.classList.replace('bg-gray-700', 'bg-blue-600');
+                btnSwap.classList.replace('bg-blue-600', 'bg-gray-700');
+            }
+        }
+
+        // Generate Placeholder
+        async function handleGenerate() {
+            const key = document.getElementById('apiKey').value;
+            if (!key) return alert("Please enter your API Key first.");
+
+            document.getElementById('resultArea').classList.remove('hidden');
+            document.getElementById('loading').classList.remove('hidden');
+            document.getElementById('outputImage').classList.add('hidden');
+
+            // This is where you would fetch your specific API
+            console.log("Sending images to your chosen API...");
+            
+            // Note: Implementation depends on which provider (Fal.ai, Replicate, etc.) you use.
+        }
+    </script>
+</body>
+</html>
+
